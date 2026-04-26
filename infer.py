@@ -39,6 +39,7 @@ import sys
 import time
 
 import numpy as np
+from huggingface_hub import hf_hub_download
 
 # ---------------------------------------------------------------------------
 #  Bootstrap: add repo root to sys.path so src/ is importable when running
@@ -152,9 +153,30 @@ def main() -> None:
     args = parser.parse_args()
 
     # -- Validate inputs ------------------------------------------------------
+    # -- Validate / Download Checkpoint ---------------------------------------
     if not os.path.isfile(args.checkpoint):
-        logger.error("Checkpoint not found: %s", args.checkpoint)
-        sys.exit(1)
+        logger.warning("Checkpoint not found locally at '%s'.", args.checkpoint)
+        
+        # Define your Hugging Face repository here
+        HF_REPO_ID = "Synapse-418-hackathon/FloodSenseModel"  # <-- CHANGE THIS TO YOUR REPO
+        ckpt_filename = os.path.basename(args.checkpoint)
+        
+        logger.info(f"Attempting to download '{ckpt_filename}' from Hugging Face Hub ({HF_REPO_ID})...")
+        
+        try:
+            # This downloads the file and returns the path to the cached local version
+            downloaded_path = hf_hub_download(
+                repo_id=HF_REPO_ID, 
+                filename=ckpt_filename
+            )
+            # Override the args.checkpoint with the new valid path
+            args.checkpoint = downloaded_path
+            logger.info("Successfully downloaded and cached checkpoint!")
+            
+        except Exception as e:
+            logger.error("Failed to download checkpoint from Hugging Face: %s", e)
+            logger.error("Please verify your Synapse-418-hackathon/FloodSenseModel and ensure the repo is public.")
+            sys.exit(1)
 
     if not os.path.isfile(args.input):
         logger.error("Input file not found: %s", args.input)
