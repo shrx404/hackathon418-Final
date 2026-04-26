@@ -133,21 +133,13 @@ A **Disaster Assessment Report** will print to the console with FloodSense model
 ```
 
 FloodSense/
-
 ├── src/                        # Core inference engine
-
 ├── api/                        # FastAPI REST service
-
 ├── sample_input/               # Scripts and data for testing
-
 ├── backend/                    # Fine-tuned FloodSense model checkpoint
-
 ├── configs/                    # Configuration files used during fine-tuning
-
 ├── notebooks/                  # Link to training pipeline
-
 ├── infer.py                    # CLI entry point
-
 └── 418Hackathon_fixed.ipynb    # Google Colab notebook used for training & fine-tuning
 
 ```
