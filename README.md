@@ -51,13 +51,9 @@ We built an end-to-end orbital compute simulation that generates ** flood vulner
 We evaluated FloodSense on the hand-labeled Sen1Floods11 test split using segmentation metrics.
 
 | Metric | FloodSense (TerraMind Tiny) | Baseline (Standard U-Net)
-
 | :--- | :---: | :---: |
-
 | **mIoU** | **0.82** 0.61 |
-
 | **val/mIoU** | **0.78** | 0.58 |
-
 | **Latency** | ~1.2 s | ~0.4 s |
 
 > While TerraMind incurs latency, the **+0.20 jump in validation mIoU** is critical for preventing false positives in insurance and planning use cases.
@@ -69,17 +65,11 @@ We evaluated FloodSense on the hand-labeled Sen1Floods11 test split using segmen
 The entire predictive pipeline is optimized to fit within the hardware constraints of a **Jetson Orin Nano-class** payload.
 
 | Constraint | Value |
-
 | :--- | :--- |
-
 Model Size | 147 MB |
-
 | Peak RAM (inference) | 1.9 GB |
-
 | Raw SAR tile size ~1,024 MB |
-
 | Downlinked mask size | ~5 KB |
-
 | **Bandwidth saved** | **99.9%**
 
 By downlinking the prediction instead of the raw image real-time predictive telemetry becomes feasible even under tight bandwidth budgets.
