@@ -1,25 +1,9 @@
-# 🔌 `api/`: The FloodSense REST Service
+# 🧠 `src/`: The Inference Engine
 
-This folder turns our standalone ML model into a web-accessible microservice using **FastAPI**.
-
-## How to run it
-
-From the root of the project, navigate into this directory and use `uvicorn` to spin up the server:
-
-```bash
-cd api
-uvicorn main:app --reload
-```
-Once it's running, visit `http://localhost:8000/docs` in your browser for the interactive Swagger UI.
+This directory contains the core machine learning logic required to take the fine-tuned checkpoint and predict floods.
 
 ## What's inside?
 
-- **`main.py`**: The entry point. Initializes the FastAPI app and handles the model loading lifecycle.
-- **`models/`**: Contains the Pydantic data models for internal logic.
-  - `flood_model.py`: Internal model definitions.
-- **`routers/`**: Contains the API endpoints.
-  - `predict.py`: Handles prediction endpoints, orchestrating data processing and model inference.
-- **`schemas/`**: Pydantic models for request/response validation.
-  - `prediction.py`: Defines the strictly typed inputs and outputs of the API endpoints.
-- **`requirements.txt`**: The dependencies needed to run the API.
-- **`.gitignore`**: Defines files to ignore in this directory.
+- **`__init__.py`**: Makes the `src` directory an importable Python module.
+- **`model.py`**: Loads the `.ckpt` weights into the model architecture, manages hardware acceleration (GPU/CPU), and provides the `run_inference` function to execute predictions and calculate telemetry.
+- **`preprocess.py`**: Contains helper functions to sanitize and normalize incoming satellite data arrays (e.g., handling NaNs, type casting) so they are perfectly formatted for the model backbone.
