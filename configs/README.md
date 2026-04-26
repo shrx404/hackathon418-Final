@@ -1,11 +1,15 @@
-# ⚙️ `configs/`: Training & Model Configurations
+# Settings for Training and Model
 
-This folder stores the configuration files used for setting up and fine-tuning the model. 
+The `configs/` folder has all the files that we use to set up and adjust the model.
 
-## What's inside?
+## What is in this folder?
 
-- **`terramind_seg.yaml`**: A `terratorch` configuration file containing the recipe for the neural network. It includes:
-  - Base foundation model details (`terramind_v1_tiny` etc.)
-  - Decoder settings (`UperNet`)
-  - Learning rates, batch sizes, and loss functions
-  - Dataset paths and splits
+- **`terramind_seg.yaml`**: This is a file that has all the details for the network. It tells us about:
+
+The model we are using (`terramind_v1_tiny` and others)
+The decoder settings we need (`UperNet`)
+How fast we learn, how many things we look at each time and what we do when we are wrong
+Where to find the data and how to split it up
+
+The `configs/` folder is where we keep all the model configuration files. We use these files to set up the model and make it work right.
+The `terramind_seg.yaml` file is like a recipe, for the network. It has all the details we need to make the model work.
