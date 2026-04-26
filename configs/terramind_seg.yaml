@@ -1,0 +1,75 @@
+# TerraMind Segmentation Config (Training Reference)
+# =====================================================
+# This YAML documents the model_args and task configuration used during
+# fine-tuning. It is for reproducibility reference only — the checkpoint
+# stores all hyperparameters internally via PyTorch Lightning.
+#
+# To reproduce training, use 418Hackathon_fixed.ipynb.
+
+model:
+  backbone: terramind_v1_tiny
+  decoder: UperNetDecoder
+  backbone_pretrained: true
+
+  # Input modality — Sentinel-1 GRD (SAR)
+  backbone_modalities:
+    - S1GRD
+  backbone_bands:
+    S1GRD:
+      - VV
+      - VH
+
+  # ViT → UperNet bridge (neck pipeline)
+  necks:
+    - name: SelectIndices
+      indices: [2, 5, 8, 11]        # layers 3, 6, 9, 12
+
+    - name: ReshapeTokensToImage
+      remove_cls_token: false        # TerraMind has no CLS token
+
+    - name: LearnedInterpolateToPyramidal
+
+  num_classes: 2                     # 0 = land / no flood,  1 = flood / water
+
+task:
+  model_factory: EncoderDecoderFactory
+  loss:
+    ce: 0.5
+    dice: 0.5
+  lr: 6.0e-5
+  optimizer: AdamW
+  optimizer_hparams:
+    weight_decay: 0.05
+  scheduler: CosineAnnealingLR
+  scheduler_hparams:
+    T_max: 50
+    eta_min: 1.0e-6
+  ignore_index: -1                   # unlabeled pixels in Sen1Floods11
+  plot_on_val: false                 # incompatible with 2-band SAR input
+
+trainer:
+  max_epochs: 50
+  accelerator: gpu
+  devices: 1
+  precision: 16-mixed
+  accumulate_grad_batches: 2         # effective batch size = 16
+  num_sanity_val_steps: 2
+  log_every_n_steps: 5
+  check_val_every_n_epoch: 2
+
+checkpoint:
+  monitor: val/mIoU
+  mode: max
+  save_top_k: 1
+
+dataset:
+  # Sen1Floods11 — hand-labeled split
+  # Download: gsutil -m rsync -r gs://sen1floods11/v1.1/ ...
+  type: GenericNonGeoSegmentationDataModule
+  batch_size: 8
+  num_workers: 0
+  pin_memory: false
+  dataset_bands: [1, 2]             # VV, VH
+  num_classes: 2
+  no_data_replace: 0
+  no_label_replace: -1

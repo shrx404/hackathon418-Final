@@ -1,0 +1,19 @@
+# Pinned dependencies for the FloodSense FastAPI service
+# Python 3.11 or 3.12 recommended (3.10 works but is not officially supported)
+# ---------------------------------------------------------------------------
+# Core ML stack — must match root requirements.txt
+terratorch>=1.2.4
+torch>=2.0.0
+torchgeo>=0.6.0           # SENTINEL2_ALL_SOFTCON added in 0.6.0 (required by terratorch 1.2.6)
+numpy>=1.24.0
+rasterio>=1.3.0
+
+# FastAPI service
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+pydantic==2.7.1
+python-dotenv==1.0.1
+python-multipart>=0.0.9
+
+# Image encoding
+Pillow>=10.0.0

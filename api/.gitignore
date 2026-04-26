@@ -1,0 +1,22 @@
+# Environment variables (contains secrets)
+# .env
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+.venv/
+
+# Model artifacts (large binary files)
+*.pkl
+*.pt
+*.pth
+*.onnx
+*.h5
+
+# IDE
+.vscode/
+.idea/
