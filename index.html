@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ImageScope — FloodSense Viewer</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg:          #080b10;
+    --surface:     #0e1318;
+    --surface2:    #141b22;
+    --border:      #1e2d3d;
+    --accent:      #00d9ff;
+    --accent2:     #0077ff;
+    --accent-dim:  #00d9ff22;
+    --green:       #00ffb3;
+    --amber:       #f0a030;
+    --amber-dim:   rgba(240,160,48,0.12);
+    --red:         #ff4444;
+    --text:        #c8d6e5;
+    --text-dim:    #556677;
+    --text-muted:  #3a4a5a;
+    --mono:        'IBM Plex Mono', monospace;
+    --sans:        'IBM Plex Sans', sans-serif;
+    --display:     'Syne', sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.25;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Header ── */
+  header {
+    position: relative; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 32px;
+    border-bottom: 1px solid var(--border);
+    background: #08080f99;
+    backdrop-filter: blur(12px);
+  }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-icon {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .logo-text {
+    font-family: var(--mono);
+    font-size: 15px; font-weight: 600;
+    letter-spacing: 0.05em; color: #fff;
+  }
+  .logo-sub {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--text-dim); letter-spacing: 0.15em;
+    text-transform: uppercase; margin-top: 1px;
+  }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+  .status-pill {
+    font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.12em; padding: 4px 10px;
+    border-radius: 20px; border: 1px solid var(--border);
+    color: var(--text-dim); text-transform: uppercase;
+  }
+  .status-pill.ready   { border-color: var(--green);  color: var(--green); }
+  .status-pill.loading { border-color: var(--amber);  color: var(--amber); animation: pulse 1s ease infinite; }
+  .status-pill.error   { border-color: var(--red);    color: var(--red); }
+  .infer-pill {
+    font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.12em; padding: 4px 10px;
+    border-radius: 20px; border: 1px solid var(--border);
+    color: var(--text-dim); text-transform: uppercase;
+    display: none;
+  }
+  .infer-pill.running  { display: block; border-color: var(--amber); color: var(--amber); animation: pulse 1s ease infinite; }
+  .infer-pill.done     { display: block; border-color: var(--amber); color: var(--amber); }
+
+  /* ── Main layout ── */
+  main {
+    position: relative; z-index: 1;
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 0;
+    min-height: calc(100vh - 61px);
+  }
+
+  /* ── Left panel ── */
+  .left-panel {
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    overflow-y: auto;
+  }
+  .panel-section {
+    border-bottom: 1px solid var(--border);
+    padding: 20px;
+  }
+  .panel-label {
+    font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--text-muted); margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .panel-label::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+  .panel-label .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--amber);
+    box-shadow: 0 0 6px var(--amber);
+    animation: pulse 2s ease infinite;
+    display: none;
+  }
+  .panel-label .dot.active { display: block; }
+
+  /* ── Upload zone ── */
+  .upload-zone {
+    border: 1px dashed var(--border); border-radius: 8px;
+    padding: 28px 20px; text-align: center; cursor: pointer;
+    transition: all 0.2s ease; position: relative;
+    background: var(--surface);
+  }
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--accent); background: var(--accent-dim);
+  }
+  .upload-zone input[type="file"] {
+    position: absolute; inset: 0;
+    opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .upload-icon { font-size: 28px; margin-bottom: 10px; display: block; filter: grayscale(0.5); }
+  .upload-title { font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--text); margin-bottom: 5px; }
+  .upload-hint  { font-size: 11px; color: var(--text-dim); line-height: 1.5; }
+  .upload-types { margin-top: 10px; display: flex; gap: 6px; justify-content: center; }
+  .type-badge {
+    font-family: var(--mono); font-size: 9px; font-weight: 600;
+    padding: 2px 7px; border-radius: 3px;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--accent); letter-spacing: 0.1em;
+  }
+
+  /* ── Stat cells ── */
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat-cell {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: 10px 12px; transition: border-color 0.2s;
+  }
+  .stat-cell:hover { border-color: var(--accent2); }
+  .stat-cell .label {
+    font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--text-muted); margin-bottom: 4px;
+  }
+  .stat-cell .value { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--accent); }
+  .stat-cell .value.green  { color: var(--green); }
+  .stat-cell .value.amber  { color: var(--amber); }
+  .stat-cell .value.white  { color: #fff; }
+
+  .kv-list { display: flex; flex-direction: column; gap: 6px; }
+  .kv-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 8px; padding: 6px 10px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 5px;
+  }
+  .kv-key {
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+    letter-spacing: 0.08em; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; flex: 1;
+  }
+  .kv-val { font-family: var(--mono); font-size: 11px; font-weight: 500; color: var(--text); text-align: right; }
+  .kv-val.amber { color: var(--amber); }
+  .kv-val.green { color: var(--green); }
+
+  .placeholder-txt {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--text-muted); text-align: center; padding: 12px 0;
+  }
+
+  /* ── FloodSense panel ── */
+  .floodsense-panel { display: none; }
+  .floodsense-panel.visible { display: block; }
+
+  .flood-alert {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 12px; margin-bottom: 14px;
+    background: var(--amber-dim);
+    border: 1px solid rgba(240,160,48,0.35);
+    border-radius: 6px;
+  }
+  .flood-alert-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--amber); box-shadow: 0 0 6px var(--amber);
+    animation: pulse 2s ease infinite;
+    flex-shrink: 0; margin-top: 3px;
+  }
+  .flood-alert-text {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--amber); line-height: 1.6;
+  }
+
+  .flood-big-stat {
+    display: flex; align-items: baseline; gap: 6px; margin-bottom: 14px;
+  }
+  .flood-big-num {
+    font-family: var(--display); font-size: 3rem; font-weight: 800;
+    color: var(--amber); line-height: 1; letter-spacing: -0.04em;
+  }
+  .flood-big-label {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--text-dim); letter-spacing: 0.1em; text-transform: uppercase;
+  }
+
+  .bar-wrap { margin-bottom: 14px; }
+  .bar-row-label {
+    display: flex; justify-content: space-between;
+    font-family: var(--mono); font-size: 10px; margin-bottom: 5px;
+  }
+  .bar-row-label .name.flood { color: var(--amber); }
+  .bar-row-label .name.land  { color: var(--green); }
+  .bar-row-label .pct { color: var(--text-dim); }
+  .bar-bg { height: 5px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+  .bar-fill { height: 100%; width: 0%; border-radius: 2px; transition: width 1.4s cubic-bezier(0.19,1,0.22,1); }
+  .bar-fill.flood { background: var(--amber); }
+  .bar-fill.land  { background: var(--green); }
+
+  .mini-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .mini-cell {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: 9px 11px;
+  }
+  .mini-cell .label {
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px;
+  }
+  .mini-cell .val {
+    font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--text);
+  }
+  .mini-cell .val.amber { color: var(--amber); }
+  .mini-cell .val.green { color: var(--green); }
+
+  /* ── Right panel ── */
+  .right-panel {
+    display: flex; flex-direction: column;
+    padding: 32px; gap: 24px; overflow-y: auto;
+  }
+
+  .idle-state {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 16px; opacity: 0.5;
+    flex: 1;
+  }
+  .idle-graphic {
+    width: 120px; height: 120px; border: 1px solid var(--border);
+    border-radius: 12px; display: grid; place-items: center;
+    background: var(--surface); position: relative; overflow: hidden;
+  }
+  .idle-graphic::before {
+    content: ''; position: absolute; inset: 0;
+    background: repeating-linear-gradient(45deg, transparent, transparent 8px, var(--border) 8px, var(--border) 9px);
+    opacity: 0.4;
+  }
+  .idle-graphic span { font-size: 40px; position: relative; z-index: 1; }
+  .idle-hint { font-family: var(--mono); font-size: 12px; color: var(--text-dim); text-align: center; line-height: 1.6; }
+
+  /* image displays */
+  .image-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 900px) { .image-row { grid-template-columns: 1fr; } }
+
+  .image-card { display: none; flex-direction: column; gap: 10px; }
+  .image-card.visible { display: flex; animation: fadeIn 0.4s ease; }
+
+  .image-card-title {
+    font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--text-dim);
+  }
+  .image-card-title span { color: var(--accent); }
+  .image-card-title span.amber { color: var(--amber); }
+
+  .image-container {
+    border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; background: #000; position: relative;
+  }
+  .image-container.flood-border { border-color: rgba(240,160,48,0.4); }
+  .image-container img {
+    display: block; width: 100%;
+    max-height: 46vh; object-fit: contain;
+    image-rendering: pixelated;
+  }
+  .image-overlay {
+    position: absolute; top: 8px; left: 8px;
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em;
+    color: var(--accent); background: #00000099;
+    padding: 3px 7px; border-radius: 3px;
+    border: 1px solid rgba(0,217,255,0.2);
+  }
+  .image-overlay.amber { color: var(--amber); border-color: rgba(240,160,48,0.3); }
+
+  .filename-bar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 5px;
+    font-family: var(--mono); font-size: 11px;
+  }
+  .filename-name { color: var(--text); flex: 1; }
+  .filename-size { color: var(--text-dim); }
+
+  /* infer progress bar */
+  .infer-progress {
+    display: none;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: 16px;
+  }
+  .infer-progress.active { display: block; }
+  .infer-progress-label {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--amber); letter-spacing: 0.12em; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .infer-spinner {
+    width: 10px; height: 10px;
+    border: 1.5px solid rgba(240,160,48,0.3);
+    border-top-color: var(--amber);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    display: inline-block;
+  }
+  .progress-track { height: 3px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+  .progress-fill {
+    height: 100%; width: 0%; background: var(--amber);
+    border-radius: 2px;
+    animation: inferProgress 8s ease-in-out forwards;
+  }
+  @keyframes inferProgress {
+    0%   { width: 0%; }
+    30%  { width: 20%; }
+    60%  { width: 55%; }
+    85%  { width: 75%; }
+    100% { width: 90%; }
+  }
+  .infer-note {
+    font-family: var(--mono); font-size: 9px;
+    color: var(--text-muted); margin-top: 6px; letter-spacing: 0.05em;
+  }
+
+  /* loading overlay */
+  .loading-overlay {
+    display: none; position: fixed; inset: 0;
+    background: #080b10cc; z-index: 100;
+    align-items: center; justify-content: center;
+    flex-direction: column; gap: 16px;
+    backdrop-filter: blur(4px);
+  }
+  .loading-overlay.active { display: flex; }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  .loading-text { font-family: var(--mono); font-size: 12px; letter-spacing: 0.12em; color: var(--accent); }
+
+  /* error toast */
+  .error-toast {
+    display: none; position: fixed; bottom: 24px; right: 24px;
+    background: #1a0a0a; border: 1px solid var(--red);
+    border-radius: 8px; padding: 14px 18px;
+    font-family: var(--mono); font-size: 12px; color: var(--red);
+    z-index: 200; max-width: 360px;
+    animation: slideIn 0.3s ease;
+  }
+  .error-toast.active { display: block; }
+  .err-title { font-weight: 600; margin-bottom: 4px; }
+  .err-msg   { color: #ff7777; font-size: 11px; line-height: 1.5; }
+  .error-close { position: absolute; top: 10px; right: 12px; background: none; border: none; color: var(--red); cursor: pointer; font-size: 14px; }
+
+  @keyframes spin     { to { transform: rotate(360deg); } }
+  @keyframes pulse    { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  @keyframes slideIn  { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  @keyframes fadeIn   { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  @media (max-width: 800px) {
+    main { grid-template-columns: 1fr; }
+    .left-panel { border-right: none; border-bottom: 1px solid var(--border); }
+    .right-panel { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🛰️</div>
+    <div>
+      <div class="logo-text">FloodSense</div>
+      <div class="logo-sub">SAR Flood Detection · TerraMind</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="infer-pill" id="inferPill">INFERRING...</div>
+    <div class="status-pill" id="statusPill">IDLE</div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ── LEFT PANEL ── -->
+  <div class="left-panel">
+
+    <!-- Upload -->
+    <div class="panel-section">
+      <div class="panel-label">Input File</div>
+      <div class="upload-zone" id="dropZone">
+        <input type="file" id="fileInput" accept=".tif,.tiff,.npy" />
+        <span class="upload-icon">📂</span>
+        <div class="upload-title">Drop SAR file here</div>
+        <div class="upload-hint">or click to browse</div>
+        <div class="upload-types">
+          <span class="type-badge">.TIF</span>
+          <span class="type-badge">.TIFF</span>
+          <span class="type-badge">.NPY</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- FloodSense Assessment (populated after /infer) -->
+    <div class="panel-section floodsense-panel" id="floodsensePanel">
+      <div class="panel-label">
+        <span class="dot active" id="inferDot"></span>
+        FloodSense Assessment
+      </div>
+      <div id="floodsenseContent">
+        <div class="placeholder-txt">— running inference —</div>
+      </div>
+    </div>
+
+    <!-- File Metadata -->
+    <div class="panel-section">
+      <div class="panel-label">File Metadata</div>
+      <div id="metaContent"><div class="placeholder-txt">— no file loaded —</div></div>
+    </div>
+
+    <!-- Array Stats -->
+    <div class="panel-section">
+      <div class="panel-label">Array Stats</div>
+      <div id="statsContent"><div class="placeholder-txt">— no file loaded —</div></div>
+    </div>
+
+    <!-- Custom Stats -->
+    <div class="panel-section">
+      <div class="panel-label">Custom Stats</div>
+      <div id="customContent"><div class="placeholder-txt">— no file loaded —</div></div>
+    </div>
+
+  </div>
+
+  <!-- ── RIGHT PANEL ── -->
+  <div class="right-panel">
+
+    <div class="idle-state" id="idleState">
+      <div class="idle-graphic"><span>🛰️</span></div>
+      <div class="idle-hint">Upload a SAR .tif or .npy file<br/>to begin flood detection</div>
+    </div>
+
+    <!-- Inference progress -->
+    <div class="infer-progress" id="inferProgress">
+      <div class="infer-progress-label">
+        <span class="infer-spinner"></span>
+        RUNNING FLOODSENSE INFERENCE
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="infer-note">TerraMind v1 Tiny · UperNet head · mIoU 0.78</div>
+    </div>
+
+    <!-- File bar (shared) -->
+    <div class="filename-bar" id="filenameBar" style="display:none;">
+      <span>📄</span>
+      <span class="filename-name" id="filenameLabel">—</span>
+      <span class="filename-size" id="fileSizeLabel">—</span>
+    </div>
+
+    <!-- Image row: SAR input + Flood mask -->
+    <div class="image-row">
+
+      <!-- SAR input image -->
+      <div class="image-card" id="sarCard">
+        <div class="image-card-title">SAR Input &nbsp;<span>VV + VH</span></div>
+        <div class="image-container">
+          <img id="sarImage" src="" alt="SAR input" />
+          <div class="image-overlay" id="sarOverlay">—</div>
+        </div>
+      </div>
+
+      <!-- Flood mask -->
+      <div class="image-card" id="maskCard">
+        <div class="image-card-title">Flood Mask &nbsp;<span class="amber">Binary Output</span></div>
+        <div class="image-container flood-border">
+          <img id="maskImage" src="" alt="Flood mask" />
+          <div class="image-overlay amber" id="maskOverlay">—</div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</main>
+
+<!-- Loading overlay (for /upload) -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text">LOADING FILE...</div>
+</div>
+
+<!-- Error toast -->
+<div class="error-toast" id="errorToast">
+  <button class="error-close" onclick="hideError()">✕</button>
+  <div class="err-title">⚠ Error</div>
+  <div class="err-msg" id="errorMsg">—</div>
+</div>
+
+<script>
+const API_BASE = "";  // same origin — uvicorn serves both
+
+// DOM refs
+const fileInput      = document.getElementById("fileInput");
+const dropZone       = document.getElementById("dropZone");
+const statusPill     = document.getElementById("statusPill");
+const inferPill      = document.getElementById("inferPill");
+const idleState      = document.getElementById("idleState");
+const sarCard        = document.getElementById("sarCard");
+const maskCard       = document.getElementById("maskCard");
+const sarImage       = document.getElementById("sarImage");
+const maskImage      = document.getElementById("maskImage");
+const sarOverlay     = document.getElementById("sarOverlay");
+const maskOverlay    = document.getElementById("maskOverlay");
+const filenameBar    = document.getElementById("filenameBar");
+const filenameLabel  = document.getElementById("filenameLabel");
+const fileSizeLabel  = document.getElementById("fileSizeLabel");
+const metaContent    = document.getElementById("metaContent");
+const statsContent   = document.getElementById("statsContent");
+const customContent  = document.getElementById("customContent");
+const loadingOverlay = document.getElementById("loadingOverlay");
+const errorToast     = document.getElementById("errorToast");
+const errorMsg       = document.getElementById("errorMsg");
+const floodsensePanel   = document.getElementById("floodsensePanel");
+const floodsenseContent = document.getElementById("floodsenseContent");
+const inferProgress  = document.getElementById("inferProgress");
+const progressFill   = document.getElementById("progressFill");
+
+// ── Drag & drop ─────────────────────────────────────────────────────────────
+dropZone.addEventListener("dragover",  e => { e.preventDefault(); dropZone.classList.add("drag-over"); });
+dropZone.addEventListener("dragleave", ()  => dropZone.classList.remove("drag-over"));
+dropZone.addEventListener("drop", e => {
+  e.preventDefault(); dropZone.classList.remove("drag-over");
+  const f = e.dataTransfer.files[0];
+  if (f) processFile(f);
+});
+fileInput.addEventListener("change", () => {
+  if (fileInput.files[0]) processFile(fileInput.files[0]);
+});
+
+// ── Core flow ────────────────────────────────────────────────────────────────
+async function processFile(file) {
+  setStatus("loading", "LOADING");
+  loadingOverlay.classList.add("active");
+  hideError();
+
+  // Fire /upload and /infer in parallel
+  const form1 = new FormData(); form1.append("file", file);
+  const form2 = new FormData(); form2.append("file", file);
+
+  const uploadPromise = fetch(`${API_BASE}/upload`, { method: "POST", body: form1 });
+  const inferPromise  = fetch(`${API_BASE}/infer`,  { method: "POST", body: form2 });
+
+  // Handle /upload first (fast — just image + array stats)
+  let uploadData;
+  try {
+    const res = await uploadPromise;
+    uploadData = await res.json();
+    if (!res.ok) throw new Error(uploadData.detail || "Upload failed");
+    renderUpload(uploadData, file);
+    setStatus("ready", "READY");
+  } catch (err) {
+    showError("Upload: " + (err.message || "Unknown error"));
+    setStatus("error", "ERROR");
+  } finally {
+    loadingOverlay.classList.remove("active");
+    fileInput.value = "";
+  }
+
+  // Show inference progress while /infer runs (model load is slow)
+  floodsensePanel.classList.add("visible");
+  floodsenseContent.innerHTML = `<div class="placeholder-txt">— running inference —</div>`;
+  showInferProgress();
+  inferPill.className = "infer-pill running";
+
+  try {
+    const res = await inferPromise;
+    const inferData = await res.json();
+    if (!res.ok) throw new Error(inferData.detail || "Inference failed");
+    renderInfer(inferData);
+    inferPill.className = "infer-pill done";
+    inferPill.textContent = "INFERENCE DONE";
+  } catch (err) {
+    showError("Inference: " + (err.message || "Unknown error"));
+    floodsenseContent.innerHTML = `<div class="placeholder-txt" style="color:var(--red)">— inference failed —</div>`;
+    inferPill.className = "infer-pill";
+  } finally {
+    hideInferProgress();
+  }
+}
+
+// ── Render /upload response ──────────────────────────────────────────────────
+function renderUpload(data, file) {
+  const { image, stats, metadata, custom_stats } = data;
+
+  idleState.style.display = "none";
+  filenameBar.style.display = "flex";
+  filenameLabel.textContent = file.name;
+  fileSizeLabel.textContent = metadata.file_size_kb + " KB";
+
+  sarImage.src = `data:image/png;base64,${image}`;
+  sarCard.classList.add("visible");
+  sarOverlay.textContent = stats.shape.join(" × ") + " · " + stats.dtype;
+
+  metaContent.innerHTML = buildKVList({
+    "Filename":    metadata.filename,
+    "Size":        metadata.file_size_kb + " KB (" + metadata.file_size_mb + " MB)",
+    "Extension":   metadata.extension,
+    "Format":      metadata.tiff_format || "—",
+    "Pages":       metadata.num_pages ?? "—",
+    "Compression": metadata.compression ?? "—",
+    "Bits/Sample": metadata.bits_per_sample ?? "—",
+  });
+
+  statsContent.innerHTML = buildStatGrid([
+    { label: "Shape",    value: stats.shape.join(" × "), cls: "white" },
+    { label: "Dtype",    value: stats.dtype,              cls: "white" },
+    { label: "Min",      value: stats.min,                cls: "green" },
+    { label: "Max",      value: stats.max,                cls: "amber" },
+    { label: "Mean",     value: stats.mean,               cls: "" },
+    { label: "Std Dev",  value: stats.std,                cls: "" },
+    { label: "Median",   value: stats.median,             cls: "" },
+    { label: "Dims",     value: stats.ndim + "D",         cls: "white" },
+    { label: "Elements", value: fmt(stats.total_elements), cls: "" },
+    { label: "Non-zero", value: fmt(stats.non_zero),       cls: "" },
+    { label: "NaN",      value: stats.nan_count, cls: stats.nan_count > 0 ? "amber" : "" },
+  ]);
+
+  customContent.innerHTML = buildKVList(
+    Object.fromEntries(Object.entries(custom_stats).map(([k, v]) => [k, v]))
+  );
+}
+
+// ── Render /infer response ───────────────────────────────────────────────────
+function renderInfer(d) {
+  // Flood mask image
+  if (d.flood_mask) {
+    maskImage.src = `data:image/png;base64,${d.flood_mask}`;
+    maskCard.classList.add("visible");
+    maskOverlay.textContent = d.flood_pct.toFixed(1) + "% FLOOD";
+  }
+
+  // Determine alert level
+  const critical = d.flood_pct >= 50;
+  const alertColor = critical ? "var(--amber)" : "var(--green)";
+  const alertLabel = critical ? "CRITICAL INUNDATION" : "LOW FLOOD RISK";
+
+  floodsenseContent.innerHTML = `
+    <div class="flood-alert">
+      <div class="flood-alert-dot" style="background:${alertColor};box-shadow:0 0 6px ${alertColor}"></div>
+      <div class="flood-alert-text">
+        ${alertLabel}<br/>
+        ${d.area_km2.toFixed(3)} km² inundated · ${d.flood_pct.toFixed(1)}% of tile
+      </div>
+    </div>
+
+    <div class="flood-big-stat">
+      <div class="flood-big-num">${d.flood_pct.toFixed(1)}<span style="font-size:1.4rem">%</span></div>
+      <div class="flood-big-label">flooded</div>
+    </div>
+
+    <div class="bar-wrap">
+      <div class="bar-row-label">
+        <span class="name flood">Flood</span>
+        <span class="pct">${fmt(d.flood_px)} px · ${d.flood_pct.toFixed(1)}%</span>
+      </div>
+      <div class="bar-bg"><div class="bar-fill flood" id="bFlood"></div></div>
+    </div>
+    <div class="bar-wrap">
+      <div class="bar-row-label">
+        <span class="name land">Land</span>
+        <span class="pct">${fmt(d.land_px)} px · ${d.land_pct.toFixed(1)}%</span>
+      </div>
+      <div class="bar-bg"><div class="bar-fill land" id="bLand"></div></div>
+    </div>
+
+    <div class="mini-grid" style="margin-top:14px">
+      <div class="mini-cell">
+        <div class="label">Est. Area</div>
+        <div class="val amber">${d.area_km2.toFixed(3)} km²</div>
+      </div>
+      <div class="mini-cell">
+        <div class="label">Total px</div>
+        <div class="val">${fmt(d.total_px)}</div>
+      </div>
+      <div class="mini-cell">
+        <div class="label">Load time</div>
+        <div class="val">${d.load_time.toFixed(2)} s</div>
+      </div>
+      <div class="mini-cell">
+        <div class="label">Infer time</div>
+        <div class="val green">${d.infer_time.toFixed(2)} s</div>
+      </div>
+      <div class="mini-cell" style="grid-column:span 2">
+        <div class="label">Device</div>
+        <div class="val">${d.device || "—"}</div>
+      </div>
+    </div>
+
+    ${buildKVList({
+      "Checkpoint": d.checkpoint || "mIoU=0.78.ckpt",
+      "Model":      d.model      || "TerraMind v1 Tiny + UperNet",
+      "mIoU":       d.miou       || "0.78 (Sen1Floods11)",
+    })}
+  `;
+
+  // Animate bars
+  setTimeout(() => {
+    const bf = document.getElementById("bFlood");
+    const bl = document.getElementById("bLand");
+    if (bf) bf.style.width = d.flood_pct.toFixed(1) + "%";
+    if (bl) bl.style.width = d.land_pct.toFixed(1)  + "%";
+  }, 100);
+}
+
+// ── Builders ─────────────────────────────────────────────────────────────────
+function buildKVList(obj) {
+  return `<div class="kv-list" style="margin-top:10px">${
+    Object.entries(obj)
+      .filter(([, v]) => v !== undefined && v !== null && v !== "—")
+      .map(([k, v]) => `
+        <div class="kv-row">
+          <span class="kv-key">${k}</span>
+          <span class="kv-val">${v}</span>
+        </div>`).join("")
+  }</div>`;
+}
+
+function buildStatGrid(items) {
+  return `<div class="stat-grid">${
+    items.map(({ label, value, cls }) => `
+      <div class="stat-cell">
+        <div class="label">${label}</div>
+        <div class="value ${cls}">${value}</div>
+      </div>`).join("")
+  }</div>`;
+}
+
+function fmt(n) { return Number(n).toLocaleString(); }
+
+// ── UI helpers ────────────────────────────────────────────────────────────────
+function setStatus(cls, text) {
+  statusPill.className = `status-pill ${cls}`;
+  statusPill.textContent = text;
+}
+
+function showInferProgress() {
+  inferProgress.classList.add("active");
+  // reset animation
+  progressFill.style.animation = "none";
+  progressFill.offsetHeight;
+  progressFill.style.animation = "";
+}
+
+function hideInferProgress() {
+  progressFill.style.width = "100%";
+  setTimeout(() => inferProgress.classList.remove("active"), 600);
+}
+
+function showError(msg) {
+  errorMsg.textContent = msg;
+  errorToast.classList.add("active");
+  setTimeout(() => errorToast.classList.remove("active"), 8000);
+}
+
+function hideError() { errorToast.classList.remove("active"); }
+</script>
+</body>
+</html>
