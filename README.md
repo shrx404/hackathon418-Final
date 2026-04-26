@@ -6,7 +6,7 @@ When a flood hits the weather and cloud cover usually stop optical satellites fr
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Problem Statement](#-problem-statement)
 
@@ -26,7 +26,7 @@ When a flood hits the weather and cloud cover usually stop optical satellites fr
 
 ---
 
-## 🎯 Problem Statement
+## Problem Statement
 
 Agricultural insurers and regional infrastructure planners need to know which areas are vulnerable to flooding based on current SAR telemetry. Today generating these models requires downlinking massive raw satellite imagery to ground stations.
 
@@ -34,7 +34,7 @@ Agricultural insurers and regional infrastructure planners need to know which ar
 
 ---
 
-## 🔨 What We Built
+## What We Built
 
 We built an end-to-end orbital compute simulation that generates ** flood vulnerability maps**.
 
@@ -46,7 +46,7 @@ We built an end-to-end orbital compute simulation that generates ** flood vulner
 
 ---
 
-## 📊 Performance
+## Performance
 
 We evaluated FloodSense on the hand-labeled Sen1Floods11 test split using segmentation metrics.
 
@@ -60,7 +60,7 @@ We evaluated FloodSense on the hand-labeled Sen1Floods11 test split using segmen
 
 ---
 
-## 🛰️ Orbital Compute Story
+## Orbital Compute Story
 
 The entire predictive pipeline is optimized to fit within the hardware constraints of a **Jetson Orin Nano-class** payload.
 
@@ -76,7 +76,7 @@ By downlinking the prediction instead of the raw image real-time predictive tele
 
 ---
 
-## 🚀 Quickstart
+## Quickstart
 
 ### 1. Set up your environment
 
@@ -146,7 +146,7 @@ FloodSense/
 
 ---
 
-## 🧠 Model Architecture
+## Model Architecture
 
 | Component | Detail |
 | :--- | :--- |
@@ -159,6 +159,9 @@ FloodSense/
 | Precision | Mixed precision (AMP) |
 
 ---
+
+
+## Known Limitations
 
 - ** generalization:** FloodSense model performs well in agricultural basins but `val/mIoU` drops in dense urban environments due, to complex radar backscattering from buildings.
 
