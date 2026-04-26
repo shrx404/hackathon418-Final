@@ -157,21 +157,13 @@ FloodSense/
 ## 🧠 Model Architecture
 
 | Component | Detail |
-
 | :--- | :--- |
-
 | Foundation Model | IBM TerraMind v1 Tiny |
-
 | Decoder | UperNet |
-
 | Input | Sentinel-1 GRD (VV + VH bands) |
-
 | Output Binary mask. `0` = Land, `1` = flood |
-
 | Training Dataset | Sen1Floods11 (hand-labeled split)
-
 | Frameworks | `terratorch ≥ 1.2.4` + PyTorch Lightning |
-
 | Precision | Mixed precision (AMP) |
 
 ---
